@@ -1,6 +1,7 @@
 package main
 
 import "core:math" // Import the math library of odin
+import "core:math/rand" // Import rand to generate sudo-random star positions
 import rl "vendor:raylib" // Import raylib with an alias 'rl'
 
 // --- Data Structures ---
@@ -29,6 +30,20 @@ main :: proc() {
         rotation = 0,
     }
 
+    STAR_COUNT :: 400 // Number of stars
+    stars: [STAR_COUNT]rl.Vector2
+
+    // Create a random number generator, here it is seeded with `69420` which makes the random occurance of star pattern the same every render
+    r := rand.create(69420) 
+    // rand.float32(&r) gives a number between 0.0 and 1.0.
+    // Multiply it by the screen dimension to get a random coordinate.
+    for i in 0..<STAR_COUNT {
+        stars[i] = {
+            rand.float32() * f32(screen_W),  // Random x
+            rand.float32() * f32(screen_H),  // Random y
+        }
+    }
+
     // --- Main Game Loop ---
     for !rl.WindowShouldClose() {
         // --- Update ---
@@ -48,23 +63,37 @@ main :: proc() {
         thrust :: 250.0
         if rl.IsKeyDown(.W) {
             // Calculate the forward direction vector based on the ship's rotation
-            fwd_dir := rl.Vector2{
-                math.sin(player.rotation * rl.DEG2RAD),
-               -math.cos(player.rotation * rl.DEG2RAD), // Negative because here by convention `+y` is down 
-            }
+            fwd_dir := rl.Vector2{ math.sin(player.rotation * rl.DEG2RAD), -math.cos(player.rotation * rl.DEG2RAD) } // Negative because here by convention `+y` is down 
             // Add thrust to the velocity (scaled by delta time)
             player.vel += fwd_dir * thrust * dt
         }
         
         // Update player position based on velocity
         player.pos += player.vel * dt
+       
+        // Add/Subtract player.size to make the ship fully disappear before it wraps.
+        if player.pos.x > f32(screen_W) + player.size
+            { player.pos.x = -player.size }
 
+        if player.pos.x < -player.size                    
+            { player.pos.x = f32(screen_W) + player.size }
+
+        if player.pos.y > f32(screen_H) + player.size 
+            { player.pos.y = -player.size }
+
+        if player.pos.y < -player.size
+            { player.pos.y = f32(screen_H) + player.size }
 
         // --- Drawing ---
         rl.BeginDrawing()
         defer rl.EndDrawing()
 
         rl.ClearBackground(rl.BLACK)
+
+        // --- Draw the stars ---
+        for star_pos in stars {
+            rl.DrawPixelV(star_pos, rl.WHITE)
+        }
 
         // Calculate triangle points using the new '+' operator syntax
         v1 := player.pos + rl.Vector2{ math.sin(player.rotation * rl.DEG2RAD) * player.size, -math.cos(player.rotation * rl.DEG2RAD) * player.size }
